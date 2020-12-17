@@ -1,68 +1,72 @@
 package tacos.controllers;
 
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.validation.Errors;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.SessionAttributes;
-import org.springframework.web.bind.support.SessionStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
 import tacos.OrderProps;
 import tacos.beans.Order;
-import tacos.beans.User;
 import tacos.repositories.OrderRepository;
 
-import javax.validation.Valid;
-
-@Slf4j
-@Controller
+@RestController
 @RequestMapping("/orders")
-@SessionAttributes("order")
+@CrossOrigin(origins = "*")
 public class OrderController {
 
+    @Autowired
     private OrderRepository orderRepository;
 
     private OrderProps props;
 
-    @Autowired
-    public OrderController(OrderRepository orderRepository, OrderProps props) {
-        this.orderRepository = orderRepository;
-        this.props = props;
+    @PutMapping("/{orderId}")
+    public Order putOrder(@RequestBody Order order) {
+        return orderRepository.save(order);
     }
 
-    @GetMapping("/current")
-    public String orderForm() {
-        return "orderForm";
-    }
-
-    @PostMapping
-    public String processOrder(@Valid Order order,
-                               Errors errors,
-                               SessionStatus sessionStatus,
-                               @AuthenticationPrincipal User user) {
-        if (errors.hasErrors()) {
-            return "orderForm";
+    @PatchMapping(path="/{orderId}", consumes="application/json")
+    public Order patchOrder(@PathVariable("orderId") Long orderId,
+                            @RequestBody Order patch) {
+        Order order = orderRepository.findById(orderId).get();
+        if (patch.getName() != null) {
+            order.setName(patch.getName());
         }
-        order.setUser(user);
-
-        orderRepository.save(order);
-        sessionStatus.setComplete();
-
-        return "redirect:/";
+        if (patch.getStreet() != null) {
+            order.setStreet(patch.getStreet());
+        }
+        if (patch.getCity() != null) {
+            order.setCity(patch.getCity());
+        }
+        if (patch.getState() != null) {
+            order.setState(patch.getState());
+        }
+        if (patch.getZip() != null) {
+            order.setZip(patch.getState());
+        }
+        if (patch.getCcNumber() != null) {
+            order.setCcNumber(patch.getCcNumber());
+        }
+        if (patch.getCcExpiration() != null) {
+            order.setCcExpiration(patch.getCcExpiration());
+        }
+        if (patch.getCcCVV() != null) {
+            order.setCcCVV(patch.getCcCVV());
+        }
+        return orderRepository.save(order);
     }
 
-    @GetMapping
-    public String ordersForUser(
-            @AuthenticationPrincipal User user, Model model) {
-        Pageable pageable = PageRequest.of(0, props.getPageSize());
-        model.addAttribute("orders", orderRepository.findByUserOrderByPlacedAtDesc(user, pageable));
-        return "orderList";
+    @DeleteMapping("/{orderId}")
+    @ResponseStatus(code= HttpStatus.NO_CONTENT)
+    public void deleteOrder(@PathVariable("orderId") Long orderId) {
+        try {
+            orderRepository.deleteById(orderId);
+        } catch (EmptyResultDataAccessException e) {}
     }
 }
